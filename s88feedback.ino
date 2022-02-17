@@ -1,15 +1,17 @@
 /*
-S88 occupancy sensor interface to Command Station (in my case an ESU ECoS2)
+S88 occupancy sensor interface to Command Station (in my case a DR5000 from Digikeijs)
 
 Software by Ruud Boer, November 2014.
+Adaptatio by Magnus Einarsson, 2022
 Freely distributable for private, non commercial, use.
 
 Connections for S88 bus:
-s88 pin 1 Data - Arduino pin 13 = Data_Out to Oommand Station, or to the previous Arduino in the chain
+s88 pin 1 Data - Arduino pin 13 = DATA OUT to Command Station, or to the previous Arduino in the chain
+               - Arduino pin 12, used as DATA IN from previous Arduino DATA OUT
 s88 pin 2 GND  - Arduino GND
 s88 pin 3 Clock - Arduino pin 2, interrupt 0
 s88 pin 4 PS - Arduino pin 3, interrupt 1
-S66 pin 5 Reset (not used here) - Arduino pin 12, used as DATA IN from previous Arduino DATA OUT
+S88 pin 5 Reset (not used here) 
 s88 pin 6 V+ - Arduino 5V
 
 IMPORTANT: To avoid S88 signals to jitter, it is best to put DATA_in pin 12 to GND on the last Arduino in the chain.
@@ -25,7 +27,6 @@ will read that info more than 10 times!
 */
 
 int clockCounter=0;
-long loopCounter=0; //used in lines 55 and 88, see there for explanation
 unsigned int sensors=0;
 unsigned int data=0xffff;
 const byte dataIn=12;  //data input from next Arduino in S88 chain
@@ -34,9 +35,7 @@ boolean loadSensors=false; //flag that says to load sensor bits into dataOut bit
 
 void setup() {
   pinMode(2, INPUT_PULLUP);
-  attachInterrupt(0,clock,RISING); //pin 2 = clock interrupt
   pinMode(3, INPUT_PULLUP);
-  attachInterrupt(1,PS,RISING);    //pin 3 = PS interrupt
   pinMode(dataIn,INPUT_PULLUP); //pin 12 = data in from next Arduino S88 in chain
   pinMode(dataOut, OUTPUT); //pin 13 = data out to ECoS or to previous Arduino in S88 chain
   digitalWrite(dataOut, LOW);   //LED off
@@ -56,17 +55,13 @@ void setup() {
   pinMode(9, INPUT_PULLUP);  //sensor 14
   pinMode(10, INPUT_PULLUP); //sensor 15
   pinMode(11, INPUT_PULLUP); //sensor 16
+
+/* Attach IRQs after all pins have been configured */
+  attachInterrupt(1,PS,RISING);    //pin 3 = PS interrupt
+  attachInterrupt(0,clock,RISING); //pin 2 = clock interrupt
 }
 
 void loop() {
-  if (loopCounter==600){bitSet(sensors,0);}
-  /*
-  For an unknown reason the ECoS sets the first 8 bits to 1 after startup / reset of the S88 Arduino's.
-  When one of the sensor inputs is changed, from there on everything goes well.
-  Therefore, over here we give sensor bit 0 an automatic change after 30 seconds, when the ECoS is fully started.
-  The 1 second is created via 'loopCounter', which increments in the PS interrupt (line 88).
-  There are appr0ximately 20 PS pulses per second, therefore we use 20x30=600 in the if statement.
-  */
   if (!digitalRead(A0)) {bitSet(sensors,0);}
   if (!digitalRead(A1)) {bitSet(sensors,1);}
   if (!digitalRead(A2)) {bitSet(sensors,2);}
